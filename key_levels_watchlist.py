@@ -8,7 +8,7 @@ st.set_page_config(layout="wide")
 st.title("📌 Key Levels Watchlist")
 
 # === Config ===
-PROXIMITY_DEFAULT = 2.0  # Increased default for wider capture
+PROXIMITY_DEFAULT = 2.0
 PROXIMITY_MIN = 0.1
 PROXIMITY_MAX = 10.0
 
@@ -26,6 +26,9 @@ bitget = ccxt.bitget()
 markets = bitget.load_markets()
 symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap']
 
+# Store scan distances for debug output
+debug_rows = []
+
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since):
     try:
@@ -35,7 +38,6 @@ def get_ohlcv(symbol, timeframe, since):
         df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
         return df
     except Exception as e:
-        st.write(f"OHLCV fetch failed for {symbol}: {e}")
         return pd.DataFrame()
 
 def get_last_week_month_levels(symbol):
@@ -72,36 +74,36 @@ def scan_symbol(symbol, progress_text):
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
 
-        log = f"{symbol} → "
+        distances = {"symbol": symbol, "price": price}
 
         if 'week_high' in levels:
             dist = abs(price - levels['week_high']) / levels['week_high'] * 100
-            log += f"Week High Δ {dist:.2f}%  "
+            distances['week_high'] = dist
             if dist <= proximity_threshold:
                 result['week_high'] = (symbol, price, dist)
 
         if 'week_low' in levels:
             dist = abs(price - levels['week_low']) / levels['week_low'] * 100
-            log += f"Week Low Δ {dist:.2f}%  "
+            distances['week_low'] = dist
             if dist <= proximity_threshold:
                 result['week_low'] = (symbol, price, dist)
 
         if 'month_high' in levels:
             dist = abs(price - levels['month_high']) / levels['month_high'] * 100
-            log += f"Month High Δ {dist:.2f}%  "
+            distances['month_high'] = dist
             if dist <= proximity_threshold:
                 result['month_high'] = (symbol, price, dist)
 
         if 'month_low' in levels:
             dist = abs(price - levels['month_low']) / levels['month_low'] * 100
-            log += f"Month Low Δ {dist:.2f}%"
+            distances['month_low'] = dist
             if dist <= proximity_threshold:
                 result['month_low'] = (symbol, price, dist)
 
-        st.text(log)
+        debug_rows.append(distances)
 
-    except Exception as e:
-        st.write(f"Error scanning {symbol}: {e}")
+    except Exception:
+        pass
     return result
 
 # === Collect Matches ===
@@ -143,3 +145,9 @@ if check_week_high:
     show_table("📈 Near Previous Week High", results['week_high'])
 if check_week_low:
     show_table("📉 Near Previous Week Low", results['week_low'])
+
+# === Show Debug Table ===
+if debug_rows:
+    debug_df = pd.DataFrame(debug_rows).fillna("-")
+    st.subheader("🛠️ All Scan Distances")
+    st.dataframe(debug_df.sort_values(by=["week_high", "week_low", "month_high", "month_low"], ascending=True, na_position="last"), use_container_width=True)
