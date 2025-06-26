@@ -11,6 +11,7 @@ st.title("📌 Key Levels Watchlist")
 PROXIMITY_DEFAULT = 0.5  # percent
 PROXIMITY_MIN = 0.1
 PROXIMITY_MAX = 10.0
+MAX_SYMBOLS = 50  # Limit scan for testing
 
 # === UI Elements ===
 st.sidebar.header("🔧 Filters")
@@ -24,7 +25,7 @@ proximity_threshold = st.sidebar.slider("Proximity Threshold (%)", PROXIMITY_MIN
 # === Initialize Exchange ===
 bitget = ccxt.bitget()
 markets = bitget.load_markets()
-symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap']
+symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap'][:MAX_SYMBOLS]
 
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since):
@@ -34,7 +35,8 @@ def get_ohlcv(symbol, timeframe, since):
             return pd.DataFrame()
         df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
         return df
-    except:
+    except Exception as e:
+        st.write(f"OHLCV fetch failed for {symbol}: {e}")
         return pd.DataFrame()
 
 def get_last_week_month_levels(symbol):
@@ -63,9 +65,10 @@ def get_last_week_month_levels(symbol):
 
     return levels
 
-def scan_symbol(symbol):
+def scan_symbol(symbol, progress_text):
     result = {"week_high": None, "week_low": None, "month_high": None, "month_low": None}
     try:
+        progress_text.text(f"Scanning {symbol}...")
         ticker = bitget.fetch_ticker(symbol)
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
@@ -90,19 +93,20 @@ def scan_symbol(symbol):
             if dist <= proximity_threshold:
                 result['month_low'] = (symbol, price, dist)
 
-    except:
-        pass
+    except Exception as e:
+        st.write(f"Error scanning {symbol}: {e}")
     return result
 
 # === Collect Matches ===
 results = {"week_high": [], "week_low": [], "month_high": [], "month_low": []}
 progress_bar = st.progress(0)
+progress_text = st.empty()
 total = len(symbols)
 completed = 0
 
 with st.spinner("Scanning key levels in parallel..."):
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(scan_symbol, symbol) for symbol in symbols]
+        futures = [executor.submit(scan_symbol, symbol, progress_text) for symbol in symbols]
         for future in as_completed(futures):
             res = future.result()
             for key in results:
@@ -112,6 +116,7 @@ with st.spinner("Scanning key levels in parallel..."):
             progress_bar.progress(completed / total)
 
 progress_bar.empty()
+progress_text.empty()
 
 # === Display Tables ===
 def show_table(title, rows):
