@@ -10,7 +10,7 @@ st.title("📌 Key Levels Watchlist")
 # === Config ===
 PROXIMITY_DEFAULT = 2.0
 PROXIMITY_MIN = 0.1
-PROXIMITY_MAX = 20.0  # Increased from 10.0 to 20.0
+PROXIMITY_MAX = 20.0
 
 # === UI Elements ===
 st.sidebar.header("🔧 Filters")
@@ -19,7 +19,6 @@ check_week_low = st.sidebar.checkbox("Near Previous Week Low", value=True)
 check_month_high = st.sidebar.checkbox("Near Previous Month High", value=True)
 check_month_low = st.sidebar.checkbox("Near Previous Month Low", value=True)
 
-# Move proximity slider to main panel
 proximity_threshold = st.slider("🎯 Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
 
 # === Initialize Exchange ===
@@ -30,6 +29,7 @@ symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'sw
 # Store scan distances for debug output
 debug_rows = []
 valid_levels_rows = []
+all_levels_logged = []
 
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since):
@@ -77,38 +77,21 @@ def scan_symbol(symbol, progress_text):
         levels = get_last_week_month_levels(symbol)
 
         distances = {"symbol": symbol, "price": price}
-
         if levels:
             valid_levels_rows.append(symbol)
+            all_levels_logged.append({"symbol": symbol, **levels})
 
-        if 'week_high' in levels:
-            dist = abs(price - levels['week_high']) / levels['week_high'] * 100
-            distances['week_high'] = dist
-            if dist <= proximity_threshold:
-                result['week_high'] = (symbol, price, dist)
-
-        if 'week_low' in levels:
-            dist = abs(price - levels['week_low']) / levels['week_low'] * 100
-            distances['week_low'] = dist
-            if dist <= proximity_threshold:
-                result['week_low'] = (symbol, price, dist)
-
-        if 'month_high' in levels:
-            dist = abs(price - levels['month_high']) / levels['month_high'] * 100
-            distances['month_high'] = dist
-            if dist <= proximity_threshold:
-                result['month_high'] = (symbol, price, dist)
-
-        if 'month_low' in levels:
-            dist = abs(price - levels['month_low']) / levels['month_low'] * 100
-            distances['month_low'] = dist
-            if dist <= proximity_threshold:
-                result['month_low'] = (symbol, price, dist)
+        for key in ["week_high", "week_low", "month_high", "month_low"]:
+            if key in levels:
+                dist = abs(price - levels[key]) / levels[key] * 100
+                distances[key] = dist
+                if dist <= proximity_threshold:
+                    result[key] = (symbol, price, dist)
 
         debug_rows.append(distances)
 
-    except Exception:
-        pass
+    except Exception as e:
+        debug_rows.append({"symbol": symbol, "error": str(e)})
     return result
 
 # === Collect Matches ===
@@ -161,12 +144,15 @@ if valid_levels_rows:
     st.subheader("✅ Symbols with Valid Key Levels")
     st.dataframe(pd.DataFrame(valid_levels_rows, columns=["Symbol"]), use_container_width=True)
 
+if all_levels_logged:
+    st.subheader("📋 Logged Key Levels (debug)")
+    st.dataframe(pd.DataFrame(all_levels_logged), use_container_width=True)
+
 # === Top 10 Closest Overall ===
 if debug_rows:
-    all_dists = pd.DataFrame(debug_rows).drop(columns=["price"]).set_index("symbol")
+    all_dists = pd.DataFrame(debug_rows).drop(columns=["price"], errors="ignore").set_index("symbol")
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
     top10 = melted.sort_values("Distance").head(10).reset_index()
     st.subheader("🏋️ Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
-
