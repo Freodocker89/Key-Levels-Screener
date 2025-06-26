@@ -138,7 +138,12 @@ if check_week_low:
 if debug_rows:
     debug_df = pd.DataFrame(debug_rows).fillna("-")
     st.subheader("🛠️ All Scan Distances")
-    st.dataframe(debug_df.sort_values(by=["week_high", "week_low", "month_high", "month_low"], ascending=True, na_position="last"), use_container_width=True)
+    expected_cols = ["week_high", "week_low", "month_high", "month_low"]
+    available_cols = [col for col in expected_cols if col in debug_df.columns]
+    if available_cols:
+        st.dataframe(debug_df.sort_values(by=available_cols, ascending=True, na_position="last"), use_container_width=True)
+    else:
+        st.dataframe(debug_df, use_container_width=True)
 
 if valid_levels_rows:
     st.subheader("✅ Symbols with Valid Key Levels")
@@ -156,3 +161,4 @@ if debug_rows:
     top10 = melted.sort_values("Distance").head(10).reset_index()
     st.subheader("🏋️ Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
+
