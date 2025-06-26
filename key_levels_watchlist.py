@@ -11,7 +11,6 @@ st.title("📌 Key Levels Watchlist")
 PROXIMITY_DEFAULT = 0.5  # percent
 PROXIMITY_MIN = 0.1
 PROXIMITY_MAX = 10.0
-MAX_SYMBOLS = 50  # Limit scan for testing
 
 # === UI Elements ===
 st.sidebar.header("🔧 Filters")
@@ -25,7 +24,8 @@ proximity_threshold = st.sidebar.slider("Proximity Threshold (%)", PROXIMITY_MIN
 # === Initialize Exchange ===
 bitget = ccxt.bitget()
 markets = bitget.load_markets()
-symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap'][:MAX_SYMBOLS]
+# Use a few known active pairs for testing
+symbols = [s for s in ["BTC/USDT:USDT", "ETH/USDT:USDT", "XRP/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT"] if s in markets]
 
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since):
@@ -105,7 +105,7 @@ total = len(symbols)
 completed = 0
 
 with st.spinner("Scanning key levels in parallel..."):
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(scan_symbol, symbol, progress_text) for symbol in symbols]
         for future in as_completed(futures):
             res = future.result()
@@ -120,11 +120,13 @@ progress_text.empty()
 
 # === Display Tables ===
 def show_table(title, rows):
+    st.subheader(title)
     if rows:
         df = pd.DataFrame(rows, columns=["Symbol", "Current Price", "Distance (%)"])
         df["Distance (%)"] = df["Distance (%)"].round(2)
-        st.subheader(title)
         st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No matches found.")
 
 if check_month_high:
     show_table("📈 Near Previous Month High", results['month_high'])
