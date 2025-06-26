@@ -28,6 +28,7 @@ symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'sw
 
 # Store scan distances for debug output
 debug_rows = []
+valid_levels_rows = []
 
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since):
@@ -75,6 +76,9 @@ def scan_symbol(symbol, progress_text):
         levels = get_last_week_month_levels(symbol)
 
         distances = {"symbol": symbol, "price": price}
+
+        if levels:
+            valid_levels_rows.append(symbol)
 
         if 'week_high' in levels:
             dist = abs(price - levels['week_high']) / levels['week_high'] * 100
@@ -146,8 +150,22 @@ if check_week_high:
 if check_week_low:
     show_table("📉 Near Previous Week Low", results['week_low'])
 
-# === Show Debug Table ===
+# === Show Debug Tables ===
 if debug_rows:
     debug_df = pd.DataFrame(debug_rows).fillna("-")
     st.subheader("🛠️ All Scan Distances")
     st.dataframe(debug_df.sort_values(by=["week_high", "week_low", "month_high", "month_low"], ascending=True, na_position="last"), use_container_width=True)
+
+if valid_levels_rows:
+    st.subheader("✅ Symbols with Valid Key Levels")
+    st.dataframe(pd.DataFrame(valid_levels_rows, columns=["Symbol"]), use_container_width=True)
+
+# === Top 10 Closest Overall ===
+if debug_rows:
+    all_dists = pd.DataFrame(debug_rows).drop(columns=["price"]).set_index("symbol")
+    melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
+    melted = melted[melted["Distance"] != "-"]
+    top10 = melted.sort_values("Distance").head(10).reset_index()
+    st.subheader("🏁 Top 10 Closest to Key Levels")
+    st.dataframe(top10, use_container_width=True)
+
