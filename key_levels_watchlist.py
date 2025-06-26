@@ -10,7 +10,7 @@ st.title("📌 Key Levels Watchlist")
 # === Config ===
 PROXIMITY_DEFAULT = 2.0
 PROXIMITY_MIN = 0.1
-PROXIMITY_MAX = 10.0
+PROXIMITY_MAX = 20.0  # Increased from 10.0 to 20.0
 
 # === UI Elements ===
 st.sidebar.header("🔧 Filters")
@@ -167,6 +167,6 @@ if debug_rows:
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
     top10 = melted.sort_values("Distance").head(10).reset_index()
-    st.subheader("🏁 Top 10 Closest to Key Levels")
+    st.subheader("🏋️ Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
 
