@@ -2,6 +2,7 @@ import streamlit as st
 import ccxt
 import pandas as pd
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 st.set_page_config(layout="wide")
 st.title("📌 Key Levels Watchlist")
@@ -62,34 +63,55 @@ def get_last_week_month_levels(symbol):
 
     return levels
 
-# === Collect Matches ===
-results = {"week_high": [], "week_low": [], "month_high": [], "month_low": []}
-
-with st.spinner("Scanning key levels..."):
-    for symbol in symbols:
+def scan_symbol(symbol):
+    result = {"week_high": None, "week_low": None, "month_high": None, "month_low": None}
+    try:
         ticker = bitget.fetch_ticker(symbol)
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
 
-        if 'week_high' in levels and check_week_high:
+        if 'week_high' in levels:
             dist = abs(price - levels['week_high']) / levels['week_high'] * 100
             if dist <= proximity_threshold:
-                results['week_high'].append((symbol, price, dist))
+                result['week_high'] = (symbol, price, dist)
 
-        if 'week_low' in levels and check_week_low:
+        if 'week_low' in levels:
             dist = abs(price - levels['week_low']) / levels['week_low'] * 100
             if dist <= proximity_threshold:
-                results['week_low'].append((symbol, price, dist))
+                result['week_low'] = (symbol, price, dist)
 
-        if 'month_high' in levels and check_month_high:
+        if 'month_high' in levels:
             dist = abs(price - levels['month_high']) / levels['month_high'] * 100
             if dist <= proximity_threshold:
-                results['month_high'].append((symbol, price, dist))
+                result['month_high'] = (symbol, price, dist)
 
-        if 'month_low' in levels and check_month_low:
+        if 'month_low' in levels:
             dist = abs(price - levels['month_low']) / levels['month_low'] * 100
             if dist <= proximity_threshold:
-                results['month_low'].append((symbol, price, dist))
+                result['month_low'] = (symbol, price, dist)
+
+    except:
+        pass
+    return result
+
+# === Collect Matches ===
+results = {"week_high": [], "week_low": [], "month_high": [], "month_low": []}
+progress_bar = st.progress(0)
+total = len(symbols)
+completed = 0
+
+with st.spinner("Scanning key levels in parallel..."):
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(scan_symbol, symbol) for symbol in symbols]
+        for future in as_completed(futures):
+            res = future.result()
+            for key in results:
+                if res[key]:
+                    results[key].append(res[key])
+            completed += 1
+            progress_bar.progress(completed / total)
+
+progress_bar.empty()
 
 # === Display Tables ===
 def show_table(title, rows):
