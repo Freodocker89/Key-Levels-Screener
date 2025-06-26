@@ -8,7 +8,7 @@ st.set_page_config(layout="wide")
 st.title("📌 Key Levels Watchlist")
 
 # === Config ===
-PROXIMITY_DEFAULT = 0.5  # percent
+PROXIMITY_DEFAULT = 2.0  # Increased default for wider capture
 PROXIMITY_MIN = 0.1
 PROXIMITY_MAX = 10.0
 
@@ -24,8 +24,7 @@ proximity_threshold = st.sidebar.slider("Proximity Threshold (%)", PROXIMITY_MIN
 # === Initialize Exchange ===
 bitget = ccxt.bitget()
 markets = bitget.load_markets()
-# Use a few known active pairs for testing
-symbols = [s for s in ["BTC/USDT:USDT", "ETH/USDT:USDT", "XRP/USDT:USDT", "SOL/USDT:USDT", "BNB/USDT:USDT"] if s in markets]
+symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap']
 
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since):
@@ -73,25 +72,33 @@ def scan_symbol(symbol, progress_text):
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
 
+        log = f"{symbol} → "
+
         if 'week_high' in levels:
             dist = abs(price - levels['week_high']) / levels['week_high'] * 100
+            log += f"Week High Δ {dist:.2f}%  "
             if dist <= proximity_threshold:
                 result['week_high'] = (symbol, price, dist)
 
         if 'week_low' in levels:
             dist = abs(price - levels['week_low']) / levels['week_low'] * 100
+            log += f"Week Low Δ {dist:.2f}%  "
             if dist <= proximity_threshold:
                 result['week_low'] = (symbol, price, dist)
 
         if 'month_high' in levels:
             dist = abs(price - levels['month_high']) / levels['month_high'] * 100
+            log += f"Month High Δ {dist:.2f}%  "
             if dist <= proximity_threshold:
                 result['month_high'] = (symbol, price, dist)
 
         if 'month_low' in levels:
             dist = abs(price - levels['month_low']) / levels['month_low'] * 100
+            log += f"Month Low Δ {dist:.2f}%"
             if dist <= proximity_threshold:
                 result['month_low'] = (symbol, price, dist)
+
+        st.text(log)
 
     except Exception as e:
         st.write(f"Error scanning {symbol}: {e}")
@@ -105,7 +112,7 @@ total = len(symbols)
 completed = 0
 
 with st.spinner("Scanning key levels in parallel..."):
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(scan_symbol, symbol, progress_text) for symbol in symbols]
         for future in as_completed(futures):
             res = future.result()
