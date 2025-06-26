@@ -19,7 +19,8 @@ check_week_low = st.sidebar.checkbox("Near Previous Week Low", value=True)
 check_month_high = st.sidebar.checkbox("Near Previous Month High", value=True)
 check_month_low = st.sidebar.checkbox("Near Previous Month Low", value=True)
 
-proximity_threshold = st.sidebar.slider("Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
+# Move proximity slider to main panel
+proximity_threshold = st.slider("🎯 Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
 
 # === Initialize Exchange ===
 bitget = ccxt.bitget()
