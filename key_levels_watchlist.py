@@ -54,17 +54,25 @@ def get_last_week_month_levels(symbol):
 
     levels = {}
 
-    if not week_data.empty and 'timestamp' in week_data.columns:
+    if week_data.empty:
+        debug_rows.append({"symbol": symbol, "error": "No week_data"})
+    else:
         prev_week = week_data[week_data['timestamp'] < int(start_of_this_week.timestamp() * 1000)]
         if not prev_week.empty:
             levels['week_high'] = prev_week['high'].max()
             levels['week_low'] = prev_week['low'].min()
+        else:
+            debug_rows.append({"symbol": symbol, "error": "No valid previous week candles"})
 
-    if not month_data.empty and 'timestamp' in month_data.columns:
+    if month_data.empty:
+        debug_rows.append({"symbol": symbol, "error": "No month_data"})
+    else:
         prev_month = month_data[month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000)]
         if not prev_month.empty:
             levels['month_high'] = prev_month['high'].max()
             levels['month_low'] = prev_month['low'].min()
+        else:
+            debug_rows.append({"symbol": symbol, "error": "No valid previous month candles"})
 
     return levels
 
