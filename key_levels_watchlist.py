@@ -59,20 +59,12 @@ def get_last_week_month_levels(symbol):
         if not prev_week.empty:
             levels['week_high'] = prev_week['high'].max()
             levels['week_low'] = prev_week['low'].min()
-        else:
-            print(f"No previous week data for {symbol}")
-    else:
-        print(f"Week data empty or missing timestamp for {symbol}")
-
+    
     if not month_data.empty and 'timestamp' in month_data.columns:
         prev_month = month_data[month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000)]
         if not prev_month.empty:
             levels['month_high'] = prev_month['high'].max()
             levels['month_low'] = prev_month['low'].min()
-        else:
-            print(f"No previous month data for {symbol}")
-    else:
-        print(f"Month data empty or missing timestamp for {symbol}")
 
     return levels
 
@@ -83,15 +75,15 @@ def scan_symbol(symbol):
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
 
-        distances = {"symbol": symbol, "price": price}
+        distances = {"symbol": symbol}
         if levels:
             valid_levels_rows.append(symbol)
-            all_levels_logged.append({"symbol": symbol, "price": price, **levels})
+            all_levels_logged.append({"symbol": symbol, **levels})
 
         for key in ["week_high", "week_low", "month_high", "month_low"]:
             if key in levels:
                 dist = abs(price - levels[key]) / levels[key] * 100
-                distances[key] = dist
+                distances[key] = round(dist, 2)
                 if dist <= proximity_threshold:
                     result[key] = (symbol, price, dist)
 
@@ -168,11 +160,5 @@ if debug_rows:
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
     top10 = melted.sort_values("Distance").head(10).reset_index()
-    st.subheader("🂊 Top 10 Closest to Key Levels")
+    st.subheader("🃪 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
-
-# === Optional Raw Output ===
-if st.sidebar.checkbox("Show raw key levels"):
-    st.subheader("📃 Raw Key Levels + Price")
-    st.dataframe(pd.DataFrame(all_levels_logged), use_container_width=True)
-
