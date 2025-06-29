@@ -36,10 +36,12 @@ def get_ohlcv(symbol, timeframe, since):
     try:
         ohlcv = bitget.fetch_ohlcv(symbol, timeframe=timeframe, since=since)
         if not ohlcv:
+            print(f"No OHLCV data for {symbol} on {timeframe}")
             return pd.DataFrame()
         df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
         return df
     except Exception as e:
+        print(f"Error fetching OHLCV for {symbol}: {e}")
         return pd.DataFrame()
 
 def get_last_week_month_levels(symbol):
@@ -51,6 +53,8 @@ def get_last_week_month_levels(symbol):
 
     week_data = get_ohlcv(symbol, '1d', int(start_of_last_week.timestamp() * 1000))
     month_data = get_ohlcv(symbol, '1d', int(start_of_last_month.timestamp() * 1000))
+
+    print(f"{symbol}: week_data={len(week_data)}, month_data={len(month_data)}")
 
     levels = {}
 
@@ -68,6 +72,7 @@ def get_last_week_month_levels(symbol):
             levels['month_high'] = prev_month['high'].max()
             levels['month_low'] = prev_month['low'].min()
 
+    print(f"{symbol} key levels: {levels}")
     return levels
 
 def scan_symbol(symbol):
@@ -88,6 +93,8 @@ def scan_symbol(symbol):
                 distances[key] = round(dist, 2)
                 if dist <= proximity_threshold:
                     result[key] = (symbol, price, dist)
+            else:
+                distances[key] = "no_data"
 
         debug_rows.append(distances)
 
@@ -161,6 +168,7 @@ if debug_rows:
     all_dists = pd.DataFrame(debug_rows).set_index("symbol")
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
+    melted = melted[melted["Distance"] != "no_data"]
     melted = melted.dropna()
     top10 = melted.sort_values("Distance").head(10).reset_index()
     st.subheader("🎪 Top 10 Closest to Key Levels")
