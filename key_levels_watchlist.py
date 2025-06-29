@@ -54,25 +54,17 @@ def get_last_week_month_levels(symbol):
 
     levels = {}
 
-    if week_data.empty:
-        debug_rows.append({"symbol": symbol, "error": "No week_data"})
-    else:
+    if not week_data.empty and 'timestamp' in week_data.columns:
         prev_week = week_data[week_data['timestamp'] < int(start_of_this_week.timestamp() * 1000)]
         if not prev_week.empty:
             levels['week_high'] = prev_week['high'].max()
             levels['week_low'] = prev_week['low'].min()
-        else:
-            debug_rows.append({"symbol": symbol, "error": "No valid previous week candles"})
 
-    if month_data.empty:
-        debug_rows.append({"symbol": symbol, "error": "No month_data"})
-    else:
+    if not month_data.empty and 'timestamp' in month_data.columns:
         prev_month = month_data[month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000)]
         if not prev_month.empty:
             levels['month_high'] = prev_month['high'].max()
             levels['month_low'] = prev_month['low'].min()
-        else:
-            debug_rows.append({"symbol": symbol, "error": "No valid previous month candles"})
 
     return levels
 
@@ -99,7 +91,8 @@ def scan_symbol(symbol, progress_text):
         debug_rows.append(distances)
 
     except Exception as e:
-        debug_rows.append({"symbol": symbol, "error": str(e)})
+        error_message = f"{type(e).__name__}: {str(e)}"
+        debug_rows.append({"symbol": symbol, "error": error_message})
     return result
 
 # === Collect Matches ===
@@ -167,6 +160,6 @@ if debug_rows:
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
     top10 = melted.sort_values("Distance").head(10).reset_index()
-    st.subheader("🏋️ Top 10 Closest to Key Levels")
+    st.subheader("🁊 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
 
