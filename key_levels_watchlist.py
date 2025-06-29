@@ -59,12 +59,20 @@ def get_last_week_month_levels(symbol):
         if not prev_week.empty:
             levels['week_high'] = prev_week['high'].max()
             levels['week_low'] = prev_week['low'].min()
+        else:
+            print(f"No previous week data for {symbol}")
+    else:
+        print(f"Week data empty or missing timestamp for {symbol}")
 
     if not month_data.empty and 'timestamp' in month_data.columns:
         prev_month = month_data[month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000)]
         if not prev_month.empty:
             levels['month_high'] = prev_month['high'].max()
             levels['month_low'] = prev_month['low'].min()
+        else:
+            print(f"No previous month data for {symbol}")
+    else:
+        print(f"Month data empty or missing timestamp for {symbol}")
 
     return levels
 
