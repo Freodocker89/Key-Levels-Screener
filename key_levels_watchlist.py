@@ -86,7 +86,7 @@ def scan_symbol(symbol):
         distances = {"symbol": symbol, "price": price}
         if levels:
             valid_levels_rows.append(symbol)
-            all_levels_logged.append({"symbol": symbol, **levels})
+            all_levels_logged.append({"symbol": symbol, "price": price, **levels})
 
         for key in ["week_high", "week_low", "month_high", "month_low"]:
             if key in levels:
@@ -170,4 +170,9 @@ if debug_rows:
     top10 = melted.sort_values("Distance").head(10).reset_index()
     st.subheader("🂊 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
+
+# === Optional Raw Output ===
+if st.sidebar.checkbox("Show raw key levels"):
+    st.subheader("📃 Raw Key Levels + Price")
+    st.dataframe(pd.DataFrame(all_levels_logged), use_container_width=True)
 
