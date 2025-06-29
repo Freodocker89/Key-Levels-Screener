@@ -52,24 +52,32 @@ def get_last_week_month_levels(symbol):
     start_of_last_month = (start_of_this_month - timedelta(days=1)).replace(day=1)
 
     # Use weekly/monthly timeframes instead of 1d
-    week_data = get_ohlcv(symbol, '1w', int(start_of_last_week.timestamp() * 1000), limit=3)
-    month_data = get_ohlcv(symbol, '1M', int(start_of_last_month.timestamp() * 1000), limit=2)
+    week_data = get_ohlcv(symbol, '1w', int(start_of_last_week.timestamp() * 1000), limit=10)
+    month_data = get_ohlcv(symbol, '1M', int(start_of_last_month.timestamp() * 1000), limit=5)
 
     print(f"{symbol}: week_data={len(week_data)}, month_data={len(month_data)}")
 
     levels = {}
 
-    if not week_data.empty and 'timestamp' in week_data.columns and len(week_data) >= 2:
-        levels['week_high'] = week_data['high'].iloc[-2]
-        levels['week_low'] = week_data['low'].iloc[-2]
-    else:
-        print(f"{symbol} - Not enough weekly candles")
+    if not week_data.empty and 'timestamp' in week_data.columns:
+        if len(week_data) >= 2:
+            levels['week_high'] = week_data['high'].iloc[-2]
+            levels['week_low'] = week_data['low'].iloc[-2]
+        elif len(week_data) >= 1:
+            levels['week_high'] = week_data['high'].iloc[-1]
+            levels['week_low'] = week_data['low'].iloc[-1]
+        else:
+            print(f"{symbol} - Not enough weekly candles")
 
-    if not month_data.empty and 'timestamp' in month_data.columns and len(month_data) >= 2:
-        levels['month_high'] = month_data['high'].iloc[-2]
-        levels['month_low'] = month_data['low'].iloc[-2]
-    else:
-        print(f"{symbol} - Not enough monthly candles")
+    if not month_data.empty and 'timestamp' in month_data.columns:
+        if len(month_data) >= 2:
+            levels['month_high'] = month_data['high'].iloc[-2]
+            levels['month_low'] = month_data['low'].iloc[-2]
+        elif len(month_data) >= 1:
+            levels['month_high'] = month_data['high'].iloc[-1]
+            levels['month_low'] = month_data['low'].iloc[-1]
+        else:
+            print(f"{symbol} - Not enough monthly candles")
 
     print(f"{symbol} key levels: {levels}")
     return levels
@@ -172,3 +180,4 @@ if debug_rows:
     top10 = melted.sort_values("Distance").head(10).reset_index()
     st.subheader("🎪 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
+
