@@ -59,13 +59,17 @@ def get_last_week_month_levels(symbol):
 
     levels = {}
 
-    if not week_data.empty and 'timestamp' in week_data.columns:
-        levels['week_high'] = week_data['high'].iloc[-2]  # second to last bar is last completed week
+    if not week_data.empty and 'timestamp' in week_data.columns and len(week_data) >= 2:
+        levels['week_high'] = week_data['high'].iloc[-2]
         levels['week_low'] = week_data['low'].iloc[-2]
+    else:
+        print(f"{symbol} - Not enough weekly candles")
 
-    if not month_data.empty and 'timestamp' in month_data.columns:
-        levels['month_high'] = month_data['high'].iloc[-2]  # second to last bar is last completed month
+    if not month_data.empty and 'timestamp' in month_data.columns and len(month_data) >= 2:
+        levels['month_high'] = month_data['high'].iloc[-2]
         levels['month_low'] = month_data['low'].iloc[-2]
+    else:
+        print(f"{symbol} - Not enough monthly candles")
 
     print(f"{symbol} key levels: {levels}")
     return levels
