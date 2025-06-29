@@ -151,16 +151,16 @@ if valid_levels_rows:
     st.dataframe(pd.DataFrame(valid_levels_rows, columns=["Symbol"]), use_container_width=True)
 
 if all_levels_logged:
-    st.subheader("📋 Logged Key Levels (debug)")
+    st.subheader("🗓 Logged Key Levels (debug)")
     st.dataframe(pd.DataFrame(all_levels_logged), use_container_width=True)
 
 # === Top 10 Closest Overall ===
 if debug_rows:
-    all_dists = pd.DataFrame(debug_rows).drop(columns=["price"], errors="ignore").set_index("symbol")
+    all_dists = pd.DataFrame(debug_rows).set_index("symbol")
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
     melted = melted.dropna()
     top10 = melted.sort_values("Distance").head(10).reset_index()
-    st.subheader("🃪 Top 10 Closest to Key Levels")
+    st.subheader("🎪 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
 
