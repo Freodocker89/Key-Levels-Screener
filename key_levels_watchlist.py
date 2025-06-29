@@ -55,13 +55,15 @@ def get_last_week_month_levels(symbol):
     levels = {}
 
     if not week_data.empty and 'timestamp' in week_data.columns:
-        prev_week = week_data[week_data['timestamp'] < int(start_of_this_week.timestamp() * 1000)]
+        prev_week = week_data[(week_data['timestamp'] >= int(start_of_last_week.timestamp() * 1000)) &
+                              (week_data['timestamp'] < int(start_of_this_week.timestamp() * 1000))]
         if not prev_week.empty:
             levels['week_high'] = prev_week['high'].max()
             levels['week_low'] = prev_week['low'].min()
-    
+
     if not month_data.empty and 'timestamp' in month_data.columns:
-        prev_month = month_data[month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000)]
+        prev_month = month_data[(month_data['timestamp'] >= int(start_of_last_month.timestamp() * 1000)) &
+                                (month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000))]
         if not prev_month.empty:
             levels['month_high'] = prev_month['high'].max()
             levels['month_low'] = prev_month['low'].min()
@@ -122,7 +124,7 @@ def show_table(title, rows):
     if rows:
         df = pd.DataFrame(rows, columns=["Symbol", "Current Price", "Distance (%)"])
         df["Distance (%)"] = df["Distance (%)"].round(2)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df.sort_values("Distance (%)"), use_container_width=True)
     else:
         st.info("No matches found.")
 
