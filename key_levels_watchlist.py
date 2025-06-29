@@ -32,9 +32,9 @@ valid_levels_rows = []
 all_levels_logged = []
 
 @st.cache_data(ttl=900)
-def get_ohlcv(symbol, timeframe, since):
+def get_ohlcv(symbol, timeframe, since, limit=100):
     try:
-        ohlcv = bitget.fetch_ohlcv(symbol, timeframe=timeframe, since=since)
+        ohlcv = bitget.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit)
         if not ohlcv:
             print(f"No OHLCV data for {symbol} on {timeframe}")
             return pd.DataFrame()
@@ -51,26 +51,21 @@ def get_last_week_month_levels(symbol):
     start_of_this_month = now.replace(day=1)
     start_of_last_month = (start_of_this_month - timedelta(days=1)).replace(day=1)
 
-    week_data = get_ohlcv(symbol, '1d', int(start_of_last_week.timestamp() * 1000))
-    month_data = get_ohlcv(symbol, '1d', int(start_of_last_month.timestamp() * 1000))
+    # Use weekly/monthly timeframes instead of 1d
+    week_data = get_ohlcv(symbol, '1w', int(start_of_last_week.timestamp() * 1000), limit=3)
+    month_data = get_ohlcv(symbol, '1M', int(start_of_last_month.timestamp() * 1000), limit=2)
 
     print(f"{symbol}: week_data={len(week_data)}, month_data={len(month_data)}")
 
     levels = {}
 
     if not week_data.empty and 'timestamp' in week_data.columns:
-        prev_week = week_data[(week_data['timestamp'] >= int(start_of_last_week.timestamp() * 1000)) &
-                              (week_data['timestamp'] < int(start_of_this_week.timestamp() * 1000))]
-        if not prev_week.empty:
-            levels['week_high'] = prev_week['high'].max()
-            levels['week_low'] = prev_week['low'].min()
+        levels['week_high'] = week_data['high'].iloc[-2]  # second to last bar is last completed week
+        levels['week_low'] = week_data['low'].iloc[-2]
 
     if not month_data.empty and 'timestamp' in month_data.columns:
-        prev_month = month_data[(month_data['timestamp'] >= int(start_of_last_month.timestamp() * 1000)) &
-                                (month_data['timestamp'] < int(start_of_this_month.timestamp() * 1000))]
-        if not prev_month.empty:
-            levels['month_high'] = prev_month['high'].max()
-            levels['month_low'] = prev_month['low'].min()
+        levels['month_high'] = month_data['high'].iloc[-2]  # second to last bar is last completed month
+        levels['month_low'] = month_data['low'].iloc[-2]
 
     print(f"{symbol} key levels: {levels}")
     return levels
@@ -173,4 +168,3 @@ if debug_rows:
     top10 = melted.sort_values("Distance").head(10).reset_index()
     st.subheader("🎪 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
-
