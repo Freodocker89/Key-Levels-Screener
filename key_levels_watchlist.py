@@ -68,10 +68,9 @@ def get_last_week_month_levels(symbol):
 
     return levels
 
-def scan_symbol(symbol, progress_text):
+def scan_symbol(symbol):
     result = {"week_high": None, "week_low": None, "month_high": None, "month_low": None}
     try:
-        progress_text.text(f"Scanning {symbol}...")
         ticker = bitget.fetch_ticker(symbol)
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
@@ -104,7 +103,7 @@ completed = 0
 
 with st.spinner("Scanning key levels in parallel..."):
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(scan_symbol, symbol, progress_text) for symbol in symbols]
+        futures = [executor.submit(scan_symbol, symbol) for symbol in symbols]
         for future in as_completed(futures):
             res = future.result()
             for key in results:
@@ -112,6 +111,7 @@ with st.spinner("Scanning key levels in parallel..."):
                     results[key].append(res[key])
             completed += 1
             progress_bar.progress(completed / total)
+            progress_text.text(f"Scanning progress: {completed}/{total}")
 
 progress_bar.empty()
 progress_text.empty()
@@ -160,6 +160,6 @@ if debug_rows:
     melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
     melted = melted[melted["Distance"] != "-"]
     top10 = melted.sort_values("Distance").head(10).reset_index()
-    st.subheader("🁊 Top 10 Closest to Key Levels")
+    st.subheader("🂊 Top 10 Closest to Key Levels")
     st.dataframe(top10, use_container_width=True)
 
