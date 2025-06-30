@@ -1,7 +1,7 @@
 import streamlit as st
 import ccxt
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 st.set_page_config(layout="wide")
@@ -32,7 +32,7 @@ valid_levels_rows = []
 all_levels_logged = []
 
 @st.cache_data(ttl=900)
-def get_ohlcv(symbol, timeframe, since, limit=100):
+def get_ohlcv(symbol, timeframe, since, limit=200):
     try:
         ohlcv = bitget.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit)
         if not ohlcv:
@@ -45,21 +45,22 @@ def get_ohlcv(symbol, timeframe, since, limit=100):
         return pd.DataFrame()
 
 def get_last_week_month_levels(symbol):
-    now = datetime.utcnow()
-    start_of_this_week = now - timedelta(days=now.weekday())
+    # Align timestamps to UTC+8 since Bitget uses that for candle closes
+    now = datetime.utcnow() + timedelta(hours=8)
+    start_of_this_week = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     start_of_last_week = start_of_this_week - timedelta(weeks=1)
     end_of_last_week = start_of_this_week
 
-    start_of_this_month = now.replace(day=1)
+    start_of_this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     start_of_last_month = (start_of_this_month - timedelta(days=1)).replace(day=1)
     end_of_last_month = start_of_this_month
 
-    since = int((now - timedelta(days=40)).timestamp() * 1000)
-    df = get_ohlcv(symbol, '1d', since)
+    since = int((start_of_last_month - timedelta(days=5)).timestamp() * 1000)
+    df = get_ohlcv(symbol, '1d', since, limit=100)
     if df.empty:
         return {}
 
-    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms') + pd.Timedelta(hours=8)
 
     week_df = df[(df['datetime'] >= start_of_last_week) & (df['datetime'] < end_of_last_week)]
     month_df = df[(df['datetime'] >= start_of_last_month) & (df['datetime'] < end_of_last_month)]
