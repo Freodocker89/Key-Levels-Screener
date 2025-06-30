@@ -48,38 +48,33 @@ def get_last_week_month_levels(symbol):
     now = datetime.utcnow()
     start_of_this_week = now - timedelta(days=now.weekday())
     start_of_last_week = start_of_this_week - timedelta(weeks=1)
+    end_of_last_week = start_of_this_week
+
     start_of_this_month = now.replace(day=1)
     start_of_last_month = (start_of_this_month - timedelta(days=1)).replace(day=1)
+    end_of_last_month = start_of_this_month
 
-    # Use weekly/monthly timeframes instead of 1d
-    week_data = get_ohlcv(symbol, '1w', int(start_of_last_week.timestamp() * 1000), limit=10)
-    month_data = get_ohlcv(symbol, '1M', int(start_of_last_month.timestamp() * 1000), limit=5)
+    since = int((now - timedelta(days=40)).timestamp() * 1000)
+    df = get_ohlcv(symbol, '1d', since)
+    if df.empty:
+        return {}
 
-    print(f"{symbol}: week_data={len(week_data)}, month_data={len(month_data)}")
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+
+    week_df = df[(df['datetime'] >= start_of_last_week) & (df['datetime'] < end_of_last_week)]
+    month_df = df[(df['datetime'] >= start_of_last_month) & (df['datetime'] < end_of_last_month)]
 
     levels = {}
 
-    if not week_data.empty and 'timestamp' in week_data.columns:
-        if len(week_data) >= 2:
-            levels['week_high'] = week_data['high'].iloc[-2]
-            levels['week_low'] = week_data['low'].iloc[-2]
-        elif len(week_data) >= 1:
-            levels['week_high'] = week_data['high'].iloc[-1]
-            levels['week_low'] = week_data['low'].iloc[-1]
-        else:
-            print(f"{symbol} - Not enough weekly candles")
+    if not week_df.empty:
+        levels['week_high'] = week_df['high'].max()
+        levels['week_low'] = week_df['low'].min()
 
-    if not month_data.empty and 'timestamp' in month_data.columns:
-        if len(month_data) >= 2:
-            levels['month_high'] = month_data['high'].iloc[-2]
-            levels['month_low'] = month_data['low'].iloc[-2]
-        elif len(month_data) >= 1:
-            levels['month_high'] = month_data['high'].iloc[-1]
-            levels['month_low'] = month_data['low'].iloc[-1]
-        else:
-            print(f"{symbol} - Not enough monthly candles")
+    if not month_df.empty:
+        levels['month_high'] = month_df['high'].max()
+        levels['month_low'] = month_df['low'].min()
 
-    print(f"{symbol} key levels: {levels}")
+    print(f"{symbol} levels: {levels}")
     return levels
 
 def scan_symbol(symbol):
