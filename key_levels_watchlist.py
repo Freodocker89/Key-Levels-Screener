@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 st.set_page_config(layout="wide")
-st.title("\ud83d\udccc Key Levels Watchlist")
+st.title("📌 Key Levels Watchlist")
 
 # === Config ===
 PROXIMITY_DEFAULT = 2.0
@@ -13,21 +13,18 @@ PROXIMITY_MIN = 0.1
 PROXIMITY_MAX = 20.0
 
 # === UI Elements ===
-st.sidebar.header("\ud83d\udd27 Filters")
+st.sidebar.header("🔧 Filters")
 check_week_high = st.sidebar.checkbox("Near Previous Week High", value=True)
 check_week_low = st.sidebar.checkbox("Near Previous Week Low", value=True)
 check_month_high = st.sidebar.checkbox("Near Previous Month High", value=True)
 check_month_low = st.sidebar.checkbox("Near Previous Month Low", value=True)
 
-proximity_threshold = st.slider("\ud83c\udfaf Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
+proximity_threshold = st.slider("🎯 Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
 
 # === Initialize Exchange ===
 bitget = ccxt.bitget()
 markets = bitget.load_markets()
 symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap']
-
-# Store scan distances for debug output
-all_levels_logged = []
 
 @st.cache_data(ttl=900)
 def get_ohlcv(symbol, timeframe, since, limit=200):
@@ -43,7 +40,6 @@ def get_ohlcv(symbol, timeframe, since, limit=200):
         return pd.DataFrame()
 
 def get_last_week_month_levels(symbol):
-    # Align timestamps to UTC+8 since Bitget uses that for candle closes
     now = datetime.utcnow() + timedelta(hours=8)
     start_of_this_week = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     start_of_last_week = start_of_this_week - timedelta(weeks=1)
@@ -83,17 +79,14 @@ def scan_symbol(symbol):
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
 
-        if levels:
-            all_levels_logged.append({"symbol": symbol, **levels})
-
         for key in ["week_high", "week_low", "month_high", "month_low"]:
-            if key in levels:
+            if key in levels and levels[key]:
                 diff = price - levels[key]
                 dist = abs(diff) / levels[key] * 100
                 sign = "+" if diff > 0 else "-"
-                formatted_dist = f"{sign}{round(dist, 2)}"
                 if dist <= proximity_threshold:
-                    result[key] = (symbol, price, float(f"{sign}1") * dist)
+                    signed_dist = float(f"{sign}{round(dist, 2)}")
+                    result[key] = (symbol, price, signed_dist)
 
     except Exception as e:
         pass
@@ -126,17 +119,18 @@ def show_table(title, rows):
     st.subheader(title)
     if rows:
         df = pd.DataFrame(rows, columns=["Symbol", "Current Price", "Distance (%)"])
-        df = df.sort_values("Distance (%)")  # Sort with negative first, then positive
+        df["Distance (%)"] = df["Distance (%)"].astype(float)
+        df = df.sort_values("Distance (%)")
         st.dataframe(df, use_container_width=True)
     else:
         st.info("No matches found.")
 
 if check_month_high:
-    show_table("\ud83d\udcc8 Near Previous Month High", results['month_high'])
+    show_table("📈 Near Previous Month High", results['month_high'])
 if check_month_low:
-    show_table("\ud83d\udcc9 Near Previous Month Low", results['month_low'])
+    show_table("📉 Near Previous Month Low", results['month_low'])
 if check_week_high:
-    show_table("\ud83d\udcc8 Near Previous Week High", results['week_high'])
+    show_table("📈 Near Previous Week High", results['week_high'])
 if check_week_low:
-    show_table("\ud83d\udcc9 Near Previous Week Low", results['week_low'])
+    show_table("📉 Near Previous Week Low", results['week_low'])
 
