@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 st.set_page_config(layout="wide")
-st.title("📌 Key Levels Watchlist")
+st.title("\ud83d\udccc Key Levels Watchlist")
 
 # === Config ===
 PROXIMITY_DEFAULT = 2.0
@@ -13,13 +13,13 @@ PROXIMITY_MIN = 0.1
 PROXIMITY_MAX = 20.0
 
 # === UI Elements ===
-st.sidebar.header("🔧 Filters")
+st.sidebar.header("\ud83d\udd27 Filters")
 check_week_high = st.sidebar.checkbox("Near Previous Week High", value=True)
 check_week_low = st.sidebar.checkbox("Near Previous Week Low", value=True)
 check_month_high = st.sidebar.checkbox("Near Previous Month High", value=True)
 check_month_low = st.sidebar.checkbox("Near Previous Month Low", value=True)
 
-proximity_threshold = st.slider("🎯 Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
+proximity_threshold = st.slider("\ud83c\udfaf Proximity Threshold (%)", PROXIMITY_MIN, PROXIMITY_MAX, PROXIMITY_DEFAULT, 0.1)
 
 # === Initialize Exchange ===
 bitget = ccxt.bitget()
@@ -126,16 +126,17 @@ def show_table(title, rows):
     st.subheader(title)
     if rows:
         df = pd.DataFrame(rows, columns=["Symbol", "Current Price", "Distance (%)"])
-        st.dataframe(df.sort_values("Distance (%)", key=lambda x: x.abs()), use_container_width=True)
+        df = df.sort_values("Distance (%)")  # Sort with negative first, then positive
+        st.dataframe(df, use_container_width=True)
     else:
         st.info("No matches found.")
 
 if check_month_high:
-    show_table("📈 Near Previous Month High", results['month_high'])
+    show_table("\ud83d\udcc8 Near Previous Month High", results['month_high'])
 if check_month_low:
-    show_table("📉 Near Previous Month Low", results['month_low'])
+    show_table("\ud83d\udcc9 Near Previous Month Low", results['month_low'])
 if check_week_high:
-    show_table("📈 Near Previous Week High", results['week_high'])
+    show_table("\ud83d\udcc8 Near Previous Week High", results['week_high'])
 if check_week_low:
-    show_table("📉 Near Previous Week Low", results['week_low'])
+    show_table("\ud83d\udcc9 Near Previous Week Low", results['week_low'])
 
