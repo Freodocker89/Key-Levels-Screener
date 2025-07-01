@@ -27,8 +27,6 @@ markets = bitget.load_markets()
 symbols = [s for s in markets if "/USDT:USDT" in s and markets[s]['type'] == 'swap']
 
 # Store scan distances for debug output
-debug_rows = []
-valid_levels_rows = []
 all_levels_logged = []
 
 @st.cache_data(ttl=900)
@@ -85,25 +83,20 @@ def scan_symbol(symbol):
         price = ticker['last']
         levels = get_last_week_month_levels(symbol)
 
-        distances = {"symbol": symbol}
         if levels:
-            valid_levels_rows.append(symbol)
             all_levels_logged.append({"symbol": symbol, **levels})
 
         for key in ["week_high", "week_low", "month_high", "month_low"]:
             if key in levels:
-                dist = abs(price - levels[key]) / levels[key] * 100
-                distances[key] = round(dist, 2)
+                diff = price - levels[key]
+                dist = abs(diff) / levels[key] * 100
+                sign = "+" if diff > 0 else "-"
+                formatted_dist = f"{sign}{round(dist, 2)}"
                 if dist <= proximity_threshold:
-                    result[key] = (symbol, price, dist)
-            else:
-                distances[key] = "no_data"
-
-        debug_rows.append(distances)
+                    result[key] = (symbol, price, float(f"{sign}1") * dist)
 
     except Exception as e:
-        error_message = f"{type(e).__name__}: {str(e)}"
-        debug_rows.append({"symbol": symbol, "error": error_message})
+        pass
     return result
 
 # === Collect Matches ===
@@ -133,8 +126,7 @@ def show_table(title, rows):
     st.subheader(title)
     if rows:
         df = pd.DataFrame(rows, columns=["Symbol", "Current Price", "Distance (%)"])
-        df["Distance (%)"] = df["Distance (%)"].round(2)
-        st.dataframe(df.sort_values("Distance (%)"), use_container_width=True)
+        st.dataframe(df.sort_values("Distance (%)", key=lambda x: x.abs()), use_container_width=True)
     else:
         st.info("No matches found.")
 
@@ -146,34 +138,4 @@ if check_week_high:
     show_table("📈 Near Previous Week High", results['week_high'])
 if check_week_low:
     show_table("📉 Near Previous Week Low", results['week_low'])
-
-# === Show Debug Tables ===
-if debug_rows:
-    debug_df = pd.DataFrame(debug_rows).fillna("-")
-    st.subheader("🛠️ All Scan Distances")
-    expected_cols = ["week_high", "week_low", "month_high", "month_low"]
-    available_cols = [col for col in expected_cols if col in debug_df.columns]
-    if available_cols:
-        st.dataframe(debug_df.sort_values(by=available_cols, ascending=True, na_position="last"), use_container_width=True)
-    else:
-        st.dataframe(debug_df, use_container_width=True)
-
-if valid_levels_rows:
-    st.subheader("✅ Symbols with Valid Key Levels")
-    st.dataframe(pd.DataFrame(valid_levels_rows, columns=["Symbol"]), use_container_width=True)
-
-if all_levels_logged:
-    st.subheader("🗓 Logged Key Levels (debug)")
-    st.dataframe(pd.DataFrame(all_levels_logged), use_container_width=True)
-
-# === Top 10 Closest Overall ===
-if debug_rows:
-    all_dists = pd.DataFrame(debug_rows).set_index("symbol")
-    melted = all_dists.melt(ignore_index=False, var_name="Level", value_name="Distance")
-    melted = melted[melted["Distance"] != "-"]
-    melted = melted[melted["Distance"] != "no_data"]
-    melted = melted.dropna()
-    top10 = melted.sort_values("Distance").head(10).reset_index()
-    st.subheader("🎪 Top 10 Closest to Key Levels")
-    st.dataframe(top10, use_container_width=True)
 
